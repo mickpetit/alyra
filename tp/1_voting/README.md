@@ -49,7 +49,7 @@ Many events are sent after specific actions:
 
 Some extra events are defined:
 - AddressAllowed: emitted on new address added into the allowed addresses list
-- AddressUnauthorized: emmited on address removed into the allowed addresses list
+- AddressUnauthorized: emitted on address removed into the allowed addresses list
 
 After voting session ended, winning data is stored into an internal history.
 Those parameters are defined as public to be easily accessible.

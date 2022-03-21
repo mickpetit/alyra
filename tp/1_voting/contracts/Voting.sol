@@ -98,9 +98,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'ProposalsRegistrationStarted'.
      */
     function endProposalsRegistration ()
-    onlyOwner
-    onlyStatus(WorkflowStatus.ProposalsRegistrationStarted)
-    external virtual
+        onlyOwner
+        onlyStatus(WorkflowStatus.ProposalsRegistrationStarted)
+        external virtual
     {
         _updateWorkflowState(WorkflowStatus.ProposalsRegistrationEnded);
     }
@@ -112,9 +112,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'VotingSessionStarted'.
      */
     function endVotingSession ()
-    onlyOwner
-    onlyStatus(WorkflowStatus.VotingSessionStarted)
-    external virtual
+        onlyOwner
+        onlyStatus(WorkflowStatus.VotingSessionStarted)
+        external virtual
     {
         _updateWorkflowState(WorkflowStatus.VotingSessionEnded);
     }
@@ -126,9 +126,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'Initialized'.
      */
     function registerVoter (address addr)
-    onlyStatus(WorkflowStatus.Initialized)
-    onlyOwner
-    external
+        onlyStatus(WorkflowStatus.Initialized)
+        onlyOwner
+        external
     {
         _allow(addr);
         emit VoterRegistered(addr);
@@ -141,11 +141,11 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'VotesTallied'.
      */
     function reset()
-    onlyOwner
-    onlyStatus(WorkflowStatus.VotesTallied)
-    external virtual
+        onlyOwner
+        onlyStatus(WorkflowStatus.VotesTallied)
+        external virtual
     {
-        // @todo store stats
+        _resetCountingProcess();
         _updateWorkflowState(WorkflowStatus.Undefined);
         _init();
     }
@@ -157,9 +157,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'Initialized'.
      */
     function startProposalsRegistration ()
-    onlyOwner
-    onlyStatus(WorkflowStatus.Initialized)
-    external virtual
+        onlyOwner
+        onlyStatus(WorkflowStatus.Initialized)
+        external virtual
     {
         _updateWorkflowState(WorkflowStatus.ProposalsRegistrationStarted);
     }
@@ -171,9 +171,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'ProposalsRegistrationEnded'.
      */
     function startVotingSession ()
-    onlyOwner
-    onlyStatus(WorkflowStatus.ProposalsRegistrationEnded)
-    external virtual
+        onlyOwner
+        onlyStatus(WorkflowStatus.ProposalsRegistrationEnded)
+        external virtual
     {
         _updateWorkflowState(WorkflowStatus.VotingSessionStarted);
     }
@@ -185,9 +185,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'ProposalsRegistrationStarted'.
      */
     function submitProposal (string memory title, string memory description)
-    onlyStatus(WorkflowStatus.ProposalsRegistrationStarted)
-    onlyAllowed
-    external virtual
+        onlyStatus(WorkflowStatus.ProposalsRegistrationStarted)
+        onlyAllowed
+        external virtual
     {
         uint proposalId = _createProposal(title, description, msg.sender);
         emit ProposalRegistered(proposalId);
@@ -202,9 +202,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * into WinnableProposalsList smart contract.
      */
     function submitVote (uint proposalId)
-    onlyStatus(WorkflowStatus.VotingSessionStarted)
-    onlyAllowed
-    override external virtual
+        onlyStatus(WorkflowStatus.VotingSessionStarted)
+        onlyAllowed
+        override external virtual
     {
         _submitVote(msg.sender, proposalId);
         emit Voted(msg.sender, proposalId);
@@ -217,10 +217,10 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'VotingSessionEnded'.
      */
     function processCounting ()
-    onlyOwner
-    onlyStatus(WorkflowStatus.VotingSessionEnded)
-    external override virtual
-    returns (bool withWinner)
+        onlyOwner
+        onlyStatus(WorkflowStatus.VotingSessionEnded)
+        external override virtual
+        returns (bool withWinner)
     {
         Proposal memory winner;
         // process counting:
@@ -254,9 +254,9 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Current state must be set to 'Initialized'.
      */
     function unregisterVoter (address addr)
-    onlyStatus(WorkflowStatus.Initialized)
-    onlyOwner
-    external
+        onlyStatus(WorkflowStatus.Initialized)
+        onlyOwner
+        external
     {
         _unauthorized(addr);
         emit VoterUnregistered(addr);

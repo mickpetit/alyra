@@ -20,6 +20,15 @@ contract WinnableProposalsList is ProposablesList, IWinnableProposalsList {
 
     uint private _winningProposalId;
     mapping (address => uint) private _votersList;
+    bool private _processCountingDone;
+
+    /**
+     * Restrict access to counting process done
+     */
+    modifier onlyProcessCountingDone {
+        require (_processCountingDone, "Not yet counted");
+        _;
+    }
 
     /**
      * Return the winning proposal.
@@ -59,8 +68,8 @@ contract WinnableProposalsList is ProposablesList, IWinnableProposalsList {
      * Internal function with process counting
      * for winning proposal restriction.
      */
-    function _getWinner () view internal virtual returns (Proposal memory) {
-        require (_winningProposalId != 0, "Not yet counted");
+    function _getWinner () onlyProcessCountingDone view internal virtual returns (Proposal memory) {
+        require (_winningProposalId != 0, "No winner found");
         return _list[_winningProposalId];
     }
 
@@ -71,6 +80,8 @@ contract WinnableProposalsList is ProposablesList, IWinnableProposalsList {
      * Internal function with manager only restriction.
      */
     function _processCounting () onlyProposalsListManager internal virtual returns (bool) {
+        require (_processCountingDone == false, "Process counting already done!");
+
         uint boundary;
         for (uint i = 1; i <= _listLength; i++) {
             // filter initialized proposals with biggest boundary :)
@@ -84,6 +95,9 @@ contract WinnableProposalsList is ProposablesList, IWinnableProposalsList {
             }
         }
 
+        // mark the internal state for counting process as done
+        _processCountingDone = true;
+
         return _winningProposalId > 0;
     }
 
@@ -96,5 +110,13 @@ contract WinnableProposalsList is ProposablesList, IWinnableProposalsList {
         require (_votersList[voter] == 0, "You have Already voted");
         _votersList[voter] = proposalId;
         _addVoteTo(proposalId);
+    }
+
+    /**
+     * The the internal state.
+     * Internal function with manager access restriction.
+     */
+    function _resetCountingProcess() onlyProposalsListManager internal virtual {
+        _processCountingDone = false;
     }
 }
