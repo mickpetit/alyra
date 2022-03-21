@@ -1,8 +1,7 @@
 {
-  "name": "tp1",
+  "name": "1_voting",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "TP1: defined a simple voting smart contract",
   "dependencies": {
     "@openzeppelin/contracts": "^4.5.0"
   },
@@ -10,6 +9,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "Michael Petit - mickpetit@gmail.com",
+  "license": "GPL-3.0"
 }

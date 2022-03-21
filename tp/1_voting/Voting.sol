@@ -3,14 +3,31 @@
 pragma solidity 0.8.13;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./library/AllowablesList.sol";
-import "./library/WinnableProposalsList.sol";
+import "./AllowablesList.sol";
+import "./WinnableProposalsList.sol";
 
-/*
-@todo defined interface
-*/
+
 contract Voting is Ownable, AllowablesList, WinnableProposalsList {
 
+    /**
+     * Mapping to store history of winners.
+     * Public visibility automatically add getter :).
+     */
+    mapping (uint => Proposal) public winnersHistory;
+
+    /**
+     * Id of voting session.
+     * Use this parameter to retrieve
+     * previous winners in the history.
+     * Be carreful of voting session is store
+     * only after vote counting ended ;).
+     * Public visibility automatically add getter.
+     */
+    uint public votingSessionId;
+
+    /**
+     * Enum of all allowed status for workflow.
+     */
     enum WorkflowStatus {
         Undefined,
         Initialized,
@@ -22,9 +39,14 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
         VotesTallied
     }
 
+    /**
+     * Current state of workflow.
+     * Private visibility only.
+     */
     WorkflowStatus private _state;
 
     event VoterRegistered (address voterAddress);
+    event VoterUnregistered (address voterAddress);
     event WorkflowStatusChange (WorkflowStatus previousStatus, WorkflowStatus newStatus);
     event ProposalRegistered (uint proposalId);
     event Voted (address voter, uint proposalId);
@@ -32,127 +54,245 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
     event NoProposalWinning ();
 
     event Received(address, uint);
-    event Fallbacked(address, uint);
+    event LogDepositReceived(address);
 
+    /**
+     * Restrict access to workflow status.
+     */
     modifier onlyStatus (WorkflowStatus state_) {
         require (_state == state_, "Internal state not allowed");
         _;
     }
 
-    modifier onlyOnStatus (WorkflowStatus stateA, WorkflowStatus stateB) {
-        require (_state == stateA || _state == stateB, "Internal state not allowed");
-        _;
+    /**
+     * Thanks for send me tokens :)
+     * Log this event to keep history.
+     *
+     * Reject calls with not empty data to notice
+     * callers to incorrectly used of contact.
+     */
+    fallback() external payable {
+        require(msg.data.length == 0);
+        emit LogDepositReceived(msg.sender);
     }
 
-    function init () external {
+    /**
+     * Thanks for send me tokens :)
+     * Log this event to keep history.
+     */
+    receive() external payable {
+        emit Received(msg.sender, msg.value);
+    }
+
+    /**
+     * External interface for internal init function.
+     */
+    function init () external virtual {
         _init();
     }
 
-    function _init () onlyStatus(WorkflowStatus.Undefined) internal {
-        _setAllowedListManager(msg.sender);
-        _resetAllowedList();
-        _updateWorkflowState(WorkflowStatus.Initialized);
-    }
-
-    function attachVoter (address voter)
-    onlyStatus(WorkflowStatus.Initialized)
-    external
-    {
-        _allowed(voter);
-    }
-    function detachVoter (address voter) external {
-        _unauthorized(voter);
-    }
-
-    function startProposalsRegistration ()
-    onlyOwner
-    external
-    {
-        _updateWorkflowState(WorkflowStatus.ProposalsRegistrationStarted);
-    }
-
+    /**
+     * End the proposals registration process.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'ProposalsRegistrationStarted'.
+     */
     function endProposalsRegistration ()
     onlyOwner
     onlyStatus(WorkflowStatus.ProposalsRegistrationStarted)
-    external
+    external virtual
     {
         _updateWorkflowState(WorkflowStatus.ProposalsRegistrationEnded);
     }
 
+    /**
+     * End the voting session.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'VotingSessionStarted'.
+     */
+    function endVotingSession ()
+    onlyOwner
+    onlyStatus(WorkflowStatus.VotingSessionStarted)
+    external virtual
+    {
+        _updateWorkflowState(WorkflowStatus.VotingSessionEnded);
+    }
+
+    /**
+     * Add voter into the allowed list.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'Initialized'.
+     */
+    function registerVoter (address addr)
+    onlyStatus(WorkflowStatus.Initialized)
+    onlyOwner
+    external
+    {
+        _allow(addr);
+        emit VoterRegistered(addr);
+    }
+
+    /**
+     * Store stats and init a new process.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'VotesTallied'.
+     */
+    function reset()
+    onlyOwner
+    onlyStatus(WorkflowStatus.VotesTallied)
+    external virtual
+    {
+        // @todo store stats
+        _updateWorkflowState(WorkflowStatus.Undefined);
+        _init();
+    }
+
+    /**
+     * Start the proposals registration process.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'Initialized'.
+     */
+    function startProposalsRegistration ()
+    onlyOwner
+    onlyStatus(WorkflowStatus.Initialized)
+    external virtual
+    {
+        _updateWorkflowState(WorkflowStatus.ProposalsRegistrationStarted);
+    }
+
+    /**
+     * Start the voting session.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'ProposalsRegistrationEnded'.
+     */
     function startVotingSession ()
     onlyOwner
     onlyStatus(WorkflowStatus.ProposalsRegistrationEnded)
-    external
+    external virtual
     {
         _updateWorkflowState(WorkflowStatus.VotingSessionStarted);
     }
 
-    function endVotingSession ()
-    onlyOwner
-    onlyStatus(WorkflowStatus.VotingSessionStarted)
-    external
-    {
-        _updateWorkflowState(WorkflowStatus.VotingSessionEnded);
-        // @todo
-    }
-
+    /**
+     * Add a new proposal into the proposals list.
+     *
+     * External function with only allowed voters restriction.
+     * Current state must be set to 'ProposalsRegistrationStarted'.
+     */
     function submitProposal (string memory title, string memory description)
     onlyStatus(WorkflowStatus.ProposalsRegistrationStarted)
     onlyAllowed
-    external
+    external virtual
     {
         uint proposalId = _createProposal(title, description, msg.sender);
         emit ProposalRegistered(proposalId);
     }
 
+    /**
+     * Vote for proposal id.
+     *
+     * External function with only allowed voters restriction.
+     * Current state must be set to 'VotingSessionStarted'.
+     * This function override extended function
+     * into WinnableProposalsList smart contract.
+     */
     function submitVote (uint proposalId)
     onlyStatus(WorkflowStatus.VotingSessionStarted)
     onlyAllowed
-    override external
+    override external virtual
     {
         _submitVote(msg.sender, proposalId);
         emit Voted(msg.sender, proposalId);
     }
 
-    function votesCounting ()
+    /**
+     * Process votes counting.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'VotingSessionEnded'.
+     */
+    function processCounting ()
     onlyOwner
     onlyStatus(WorkflowStatus.VotingSessionEnded)
-    external
+    external override virtual
+    returns (bool withWinner)
     {
+        Proposal memory winner;
         // process counting:
         // generate event on winner found
         // otherwise generate special event for no winner found
-        if ( _processCounting() ) {
-            emit ProposalWinning (_getWinner());
+        if ( (withWinner = _processCounting()) ) {
+            winner = _getWinner();
+            emit ProposalWinning (winner);
         }
         else {
+            // whether no proposal found
+            // (ie no proposal submitted or nobody have voted)
+            // we store an empty proposal into history
+            // with special title and description
+            winner.title = "No proposal won this voting session";
+            winner.description = "No proposal won this voting session";
             emit NoProposalWinning ();
         }
 
+        // now we can store winner into the history
+        winnersHistory[votingSessionId] = winner;
+
+        // and mark the internal status as tallied
         _updateWorkflowState(WorkflowStatus.VotesTallied);
     }
 
-    // add given user into the whitelist
-    function registerVoter (address addr) onlyOwner external {
-        _allowed(addr);
-        emit VoterRegistered(addr);
+    /**
+     * Remove voter from the allowed list.
+     *
+     * External function with onlyOwner restriction.
+     * Current state must be set to 'Initialized'.
+     */
+    function unregisterVoter (address addr)
+    onlyStatus(WorkflowStatus.Initialized)
+    onlyOwner
+    external
+    {
+        _unauthorized(addr);
+        emit VoterUnregistered(addr);
     }
 
-    function reset() onlyOwner external {
-        _updateWorkflowState(WorkflowStatus.Undefined);
-        _init();
+    /**
+     * Initialize the smart contract with
+     * manager data and start the workflow
+     * to the first state.
+     *
+     * Internal function with onlyOwner and
+     * not init status restrictions.
+     */
+    function _init () onlyOwner onlyStatus(WorkflowStatus.Undefined) internal virtual {
+        // init internal features
+        _setAllowedListManager(msg.sender);
+        _setProposablesListManager(msg.sender);
+        _resetProposablesList();
+
+        // FYI: AllowedList is not reset to
+        // allow admin to mannually add or remove
+        // previously added voters.
+
+        // init the voting session id
+        votingSessionId++;
+
+        // and set the internal state as initialized.
+        _updateWorkflowState(WorkflowStatus.Initialized);
     }
 
-    receive() external payable {
-        emit Received(msg.sender, msg.value);
-    }
-    fallback() external payable {
-        emit Fallbacked(msg.sender, msg.value);
-    }
-
-
-
-    function _updateWorkflowState(WorkflowStatus newState) private {
+    /**
+     * Update the internal state to the new one.
+     *
+     * Private function with onlyOwner restriction.
+     */
+    function _updateWorkflowState(WorkflowStatus newState) onlyOwner private {
         WorkflowStatus previousStatus = _state;
         _state = newState;
         emit WorkflowStatusChange(previousStatus, newState);
