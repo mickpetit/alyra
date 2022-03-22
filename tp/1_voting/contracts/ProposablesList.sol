@@ -106,11 +106,11 @@ contract ProposablesList is IProposablesList {
      * and not empty parameters restrictions :)
      */
     function updateProposal (uint id, string memory title, string memory description)
-    onlyExistingIndex(id)
-    onlyAuthor(id)
-    withRequiredParameter(title, "title")
-    withRequiredParameter(description, "description")
-    external virtual
+        onlyExistingIndex(id)
+        onlyAuthor(id)
+        withRequiredParameter(title, "title")
+        withRequiredParameter(description, "description")
+        external virtual
     {
         _list[id] = Proposal(
             title,
@@ -142,10 +142,10 @@ contract ProposablesList is IProposablesList {
      * It return the proposal id.
      */
     function _createProposal (string memory title, string memory description, address author)
-    withRequiredParameter(title, "title")
-    withRequiredParameter(description, "description")
-    internal virtual
-    returns (uint)
+        withRequiredParameter(title, "title")
+        withRequiredParameter(description, "description")
+        internal virtual
+        returns (uint)
     {
         _list[++_listLength] = Proposal(title, description, 0, author);
         return _listLength;
