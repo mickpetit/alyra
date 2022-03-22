@@ -6,7 +6,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./AllowablesList.sol";
 import "./WinnableProposalsList.sol";
 
-
+/**
+ * Smart Contract for simple voting process.
+ *
+ * To start the workflow, call the "init" external
+ * function with the owner account. It will enable
+ * all features with default values.
+ */
 contract Voting is Ownable, AllowablesList, WinnableProposalsList {
 
     /**
@@ -19,7 +25,7 @@ contract Voting is Ownable, AllowablesList, WinnableProposalsList {
      * Id of voting session.
      * Use this parameter to retrieve
      * previous winners in the history.
-     * Be carreful of voting session is store
+     * Be careful of voting session is store
      * only after vote counting ended ;).
      * Public visibility automatically add getter.
      */

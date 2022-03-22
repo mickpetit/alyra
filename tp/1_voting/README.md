@@ -119,3 +119,6 @@ Some extra events are defined:
 After voting session ended, winning data is stored into an internal history.
 Those parameters are defined as public to be easily accessible.
 
+## How to start this Smart Contract
+Deploy the smart contract "Voting" and call the external "init" function with same address.
+It will enable all internal parameters with defaults values.
