@@ -2,5 +2,8 @@
   "dependencies": {
     "@truffle/hdwallet-provider": "^2.0.4",
     "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.15"
   }
 }
