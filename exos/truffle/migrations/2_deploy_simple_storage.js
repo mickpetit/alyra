@@ -1,5 +1,11 @@
-const SimpleStorage = artifacts.require("SimpleStorage");
+// const SimpleStorage = artifacts.require("SimpleStorage");
+//
+// module.exports = function (deployer) {
+//     deployer.deploy(SimpleStorage);
+// };
+
+const StudentNotation = artifacts.require("StudentNotation");
 
 module.exports = function (deployer) {
-    deployer.deploy(SimpleStorage);
+    deployer.deploy(StudentNotation);
 };

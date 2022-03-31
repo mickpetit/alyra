@@ -1,4 +1,4 @@
-node_modules
+exos/truffle/node_modules
 .env
 coverage
 coverage.json
@@ -8,3 +8,5 @@ typechain
 cache
 artifacts
 .env
+
+**/node_modules
