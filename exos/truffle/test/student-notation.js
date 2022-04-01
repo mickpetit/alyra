@@ -17,7 +17,7 @@ contract("StudentNotation", (accounts) => {
             instance = await StudentNotation.new({ from: sender });
             await instance.addStudent(accounts[1], studentName, studentNote);
             await instance.addStudent(accounts[2], 'titi', 9);
-            await instance.addStudent(accounts[2], 'tutu', 20);
+            await instance.addStudent(accounts[3], 'tutu', 20);
         });
 
         it("...should launch.", async () => {
@@ -25,13 +25,13 @@ contract("StudentNotation", (accounts) => {
         });
 
         it("...should set student with mapping", async () => {
-            const result = await instance.studentsMapping.call(accounts[1]);
+            const result = await instance.studentsMapping(accounts[1]);
             expect(result.name).to.be.equal(studentName);
             expect(new BN(result.note)).to.be.bignumber.equal(new BN(studentNote));
         });
 
         it("...should set student from array", async () => {
-            const result = await instance.studentsArray.call(0);
+            const result = await instance.studentsArray(0);
             expect(result.name).to.be.equal(studentName);
             expect(new BN(result.note)).to.be.bignumber.equal(new BN(studentNote));
         });
@@ -48,16 +48,16 @@ contract("StudentNotation", (accounts) => {
             expect(new BN(result.note)).to.be.bignumber.equal(new BN(studentNote));
         });
 
-        it.only("...should delete student inside array", async () => {
+        it.skip("...should delete student inside array", async () => {
             await instance.deleteStudent.call(accounts[1]);
-            const resultFromCall = await instance.getFromArray.call(0);
-            const resultFromVariable = await instance.studentsArray.call(0);
-            console.debug(resultFromCall);
-            console.debug(resultFromVariable);
+            const resultFromCall = await instance.getFromArray(studentName);
+            const resultFromVariable = await instance.studentsArray(0);
+            console.debug("resultFromCall:", resultFromCall);
+            console.debug("resultFromVariable:", resultFromVariable);
             expect(resultFromCall.name).to.be.equal('');
         });
 
-        it("...should delete student inside mapping", async () => {
+        it.skip("...should delete student inside mapping", async () => {
             await instance.deleteStudent.call(accounts[1]);
             const resultFromCall = await instance.getFromMapping.call(accounts[1]);
             const resultFromVariable = await instance.studentsMapping.call(accounts[1]);
