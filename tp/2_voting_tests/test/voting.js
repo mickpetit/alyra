@@ -1,4 +1,4 @@
-const { BN, ether, expectRevert } = require('@openzeppelin/test-helpers');
+const { BN, ether, expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
 const Voting = artifacts.require('Voting');
 
@@ -11,12 +11,12 @@ contract('Voting Contract Test Suite', async accounts => {
     const voter3 = accounts[3];
 
     const WorkflowStates = Object.freeze({
-        'RegisteringVoters':1,
-        'ProposalsRegistrationStarted':2,
-        'ProposalsRegistrationEnded':3,
-        'VotingSessionStarted': 4,
-        'VotingSessionEnded': 5,
-        'VotesTallied': 6
+        'RegisteringVoters':0,
+        'ProposalsRegistrationStarted':1,
+        'ProposalsRegistrationEnded':2,
+        'VotingSessionStarted': 3,
+        'VotingSessionEnded': 4,
+        'VotesTallied': 5
     });
 
     const WorkflowInstances = {};
@@ -32,7 +32,7 @@ contract('Voting Contract Test Suite', async accounts => {
     }
 
     describe('Test basics', () => {
-        it('should be valid for to test mechanism', function () {
+        it('should be valid to test mechanism', function () {
             expect(true).to.be.true;
         });
         /**
@@ -46,14 +46,44 @@ contract('Voting Contract Test Suite', async accounts => {
 
     describe('Test initial state "RegisteringVoters"', () => {
 
+        let instance;
 
-        describe('Add voters into whitelist', () => {
-            it('should be restrict to owner only', () => {
+        before(async () => {
+            instance = await buildNewInstance();
+        });
 
+        describe('getVoters function: check parameters and requires only', async () => {
+            it('should require 1 parameter', async () => {
+                await expectRevert( instance.getVoter(), 'Invalid number of parameters for "getVoter". Got 0 expected 1!');
             });
 
-            it('should add one voter', () => {
+            it('should require an address as parameter', async () => {
+                await expectRevert( instance.getVoter('test'), 'invalid address (argument="address", value="test", code=INVALID_ARGUMENT, version=address/5.0.5) (argument="_addr", value="test", code=INVALID_ARGUMENT, version=abi/5.0.7)' );
+            });
 
+            it('should reject for voter not yet added into whitelist', async () => {
+                await expectRevert( instance.getVoter(voter1, {from: owner}), 'You\'re not a voter' );
+            });
+        });
+
+        describe('addVoter function: insert voter into the voters list', () => {
+
+            it('should require 1 parameter', async () => {
+                await expectRevert( instance.addVoter(), 'Invalid number of parameters for "addVoter". Got 0 expected 1!');
+            });
+
+            it('should require an address as parameter', async () => {
+                await expectRevert( instance.addVoter('test'), 'invalid address (argument="address", value="test", code=INVALID_ARGUMENT, version=address/5.0.5) (argument="_addr", value="test", code=INVALID_ARGUMENT, version=abi/5.0.7)' );
+            });
+
+            it('should be restricted to owner only', async () => {
+                await expectRevert( instance.addVoter(voter1, {from: voter1}), 'Ownable: caller is not the owner.' );
+            });
+
+            it('should add one voter and return it', async () => {
+                await instance.addVoter(voter1, {from: owner});
+                const response = await instance.getVoter(voter1, {from: voter1});
+                expect(response.isRegistered).to.be.true;
             });
 
             it('should add second voter', () => {
@@ -68,6 +98,97 @@ contract('Voting Contract Test Suite', async accounts => {
 
             });
 
+        });
+
+        describe('getVoters function: check return data', async () => {
+
+            describe('should return default voter data for voter not yet added', async () => {
+
+                before(async () => {
+                    instance = await buildNewInstance();
+                    await instance.addVoter(voter1, {from: owner});
+                });
+
+                it('should contain isRegistered to be false', async () => {
+                    const voter = await instance.getVoter(voter2, {from: voter1});
+                    expect(voter.isRegistered).to.be.false;
+                });
+
+                it('should contain hasVoted to be false', async () => {
+                    const voter = await instance.getVoter(voter2, {from: voter1});
+                    expect(voter.hasVoted).to.be.false;
+                });
+
+                it('should contain votedProposalId to be default string', async () => {
+                    const voter = await instance.getVoter(voter2, {from: voter1});
+                    expect(voter.votedProposalId).to.be.equal('0');
+                });
+            });
+
+            describe('should return voter data for voter previously added', async () => {
+
+                before(async () => {
+                    instance = await buildNewInstance();
+                    await instance.addVoter(voter1, {from: owner});
+                    await instance.addVoter(voter2, {from: owner});
+                });
+
+                it('should contain isRegistered to be true', async () => {
+                    const voter = await instance.getVoter(voter1, {from: voter2});
+                    expect(voter.isRegistered).to.be.true;
+                });
+
+                it('should contain hasVoted to be false', async () => {
+                    const voter = await instance.getVoter(voter1, {from: voter2});
+                    expect(voter.hasVoted).to.be.false;
+                });
+
+                it('should contain votedProposalId to be default string', async () => {
+                    const voter = await instance.getVoter(voter1, {from: voter2});
+                    expect(voter.votedProposalId).to.be.equal('0');
+                });
+            });
+
+        });
+
+        describe('should reject other functions restricted to other workflow state', async () => {
+
+            before(async () => {
+                instance = await buildNewInstance();
+                await instance.addVoter(voter1, {from: owner});
+            });
+
+            it('should reject "addProposal" function', async () => {
+                await expectRevert(instance.addProposal('test', {from: voter1}), 'Proposals are not allowed yet');
+            });
+            it('should reject "setVote" function', async () => {
+                await expectRevert(instance.setVote(1, {from: voter1}), 'Voting session havent started yet');
+            });
+            it('should reject "endProposalsRegistering" function', async () => {
+                await expectRevert(instance.endProposalsRegistering({from: owner}), 'Registering proposals havent started yet');
+            });
+            it('should reject "startVotingSession" function', async () => {
+                await expectRevert(instance.startVotingSession({from: owner}), 'Registering proposals phase is not finished');
+            });
+            it('should reject "endVotingSession" function', async () => {
+                await expectRevert(instance.endVotingSession({from: owner}), 'Voting session havent started yet');
+            });
+        })
+    });
+
+    describe('Test function "ProposalsRegistrationStarted" to go the the second state', function () {
+
+        before(async () => {
+            instance = await buildNewInstance();
+        })
+
+        it('should be rejected for not owner', async () => {
+            await expectRevert(instance.startProposalsRegistering({from: voter1}), 'Ownable: caller is not the owner.');
+        });
+
+        it('should emit a "WorkflowStatusChange" status change event', async () => {
+            const result = await instance.startProposalsRegistering({from: owner});
+            expectEvent(result, 'WorkflowStatusChange', {previousStatus: new BN(WorkflowStates.RegisteringVoters), newStatus: new BN(WorkflowStates.ProposalsRegistrationStarted)})
         });
     });
 
