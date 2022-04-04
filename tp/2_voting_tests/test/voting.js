@@ -9,6 +9,9 @@ contract('Voting Contract Test Suite', accounts => {
     const voter1 = accounts[1];
     const voter2 = accounts[2];
     const voter3 = accounts[3];
+    let proposal1Description = 'my proposal 1';
+    let proposal2Description = 'my proposal 2';
+    let proposal3Description = 'my proposal 3';
 
     const WorkflowStates = Object.freeze({
         'RegisteringVoters':0,
@@ -23,7 +26,7 @@ contract('Voting Contract Test Suite', accounts => {
         return Voting.new({ from: owner });
     }
 
-    describe.skip('Test basics', function () {
+    describe('Test basics', function () {
         it('should be valid to test mechanism', () => {
             expect(true).to.be.true;
         });
@@ -44,7 +47,7 @@ contract('Voting Contract Test Suite', accounts => {
             instance = await buildNewInstance();
         });
 
-        describe.skip('getVoters function: check parameters and requires only', function () {
+        describe('getVoters function: check parameters and requires only', function () {
             it('should require 1 parameter', async () => {
                 await expectRevert( instance.getVoter(), 'Invalid number of parameters for "getVoter". Got 0 expected 1!');
             });
@@ -56,7 +59,7 @@ contract('Voting Contract Test Suite', accounts => {
             });
         });
 
-        describe.skip('addVoter function: insert voter into the voters list', function () {
+        describe('addVoter function: insert voter into the voters list', function () {
             let result;
             it('should require 1 parameter', async () => {
                 await expectRevert( instance.addVoter(), 'Invalid number of parameters for "addVoter". Got 0 expected 1!');
@@ -91,7 +94,7 @@ contract('Voting Contract Test Suite', accounts => {
 
         });
 
-        describe.skip('getVoters function: check return data', function () {
+        describe('getVoters function: check return data', function () {
 
             describe('should return default voter data for voter not yet added', function () {
                 before(async () => {
@@ -114,24 +117,22 @@ contract('Voting Contract Test Suite', accounts => {
             });
 
             describe('should return voter data for voter previously added', function () {
-
+                let voterResponse;
                 before(async () => {
                     instance = await buildNewInstance();
                     await instance.addVoter(voter1, {from: owner});
                     await instance.addVoter(voter2, {from: owner});
+                    voterResponse = await instance.getVoter(voter1, {from: voter2});
                 });
 
                 it('should contain isRegistered to be true', async () => {
-                    const voter = await instance.getVoter(voter1, {from: voter2});
-                    expect(voter.isRegistered).to.be.true;
+                    expect(voterResponse.isRegistered).to.be.true;
                 });
                 it('should contain hasVoted to be false', async () => {
-                    const voter = await instance.getVoter(voter1, {from: voter2});
-                    expect(voter.hasVoted).to.be.false;
+                    expect(voterResponse.hasVoted).to.be.false;
                 });
                 it('should contain votedProposalId to be default string', async () => {
-                    const voter = await instance.getVoter(voter1, {from: voter2});
-                    expect(voter.votedProposalId).to.be.equal('0');
+                    expect(voterResponse.votedProposalId).to.be.equal('0');
                 });
             });
 
@@ -142,13 +143,15 @@ contract('Voting Contract Test Suite', accounts => {
     describe('Test state "ProposalsRegistrationStarted"', function () {
         let instance;
 
-        before(async () => {
-            instance = await buildNewInstance();
-            await instance.addVoter(voter1, {from: owner});
-            await instance.startProposalsRegistering({from: owner});
-        });
-
         describe('addProposal function', function () {
+            before(async () => {
+                instance = await buildNewInstance();
+                await instance.addVoter(voter1, {from: owner});
+                await instance.addVoter(voter2, {from: owner});
+                await instance.addVoter(voter3, {from: owner});
+                await instance.startProposalsRegistering({from: owner});
+            });
+
             it('should reject for voter not yet added into whitelist', async () => {
                 await expectRevert( instance.addProposal(voter1, {from: owner}), 'You\'re not a voter' );
             });
@@ -158,9 +161,9 @@ contract('Voting Contract Test Suite', accounts => {
             describe('should emit "ProposalRegistered" event', () => {
                 let tx1, tx2, tx3;
                 before(async () => {
-                    tx1 = await instance.addProposal('my proposal 1', {from: voter1});
-                    tx2 = await instance.addProposal('my proposal 2', {from: voter1});
-                    tx3 = await instance.addProposal('my proposal 3', {from: voter1});
+                    tx1 = await instance.addProposal(proposal1Description, {from: voter1});
+                    tx2 = await instance.addProposal(proposal2Description, {from: voter2});
+                    tx3 = await instance.addProposal(proposal3Description, {from: voter3});
                 });
 
                 it('should emit "ProposalRegistered" event with proposalId 1', async () => {
@@ -172,15 +175,128 @@ contract('Voting Contract Test Suite', accounts => {
                 it('should emit "ProposalRegistered" event with proposalId 3', async () => {
                     expectEvent(tx3, 'ProposalRegistered', {0: new BN(2)});
                 });
+                it('should allow multiple proposals from same voter', async () => {
+                    let tx = await instance.addProposal(proposal3Description, {from: voter1});
+                    expectEvent(tx, 'ProposalRegistered', {0: new BN(3)});
+                });
             })
         });
 
         describe('getOneProposal function', function () {
+            before(async () => {
+                instance = await buildNewInstance();
+                await instance.addVoter(voter1, {from: owner});
+                await instance.startProposalsRegistering({from: owner});
+            });
 
+            it('should reject for proposal not yet added into whitelist', async () => {
+                await expectRevert( instance.getOneProposal(0, {from: voter3}), 'You\'re not a voter' );
+            });
+            it('should require 1 parameter', async () => {
+                await expectRevert( instance.getOneProposal(0, 10, {from: voter1}), 'Invalid number of parameters for "getOneProposal". Got 2 expected 1!');
+            });
+            it('should reject negative proposal id', async () => {
+                await expectRevert( instance.getOneProposal(-10, {from: voter1}), 'value out-of-bounds (argument="_id", value=-10, code=INVALID_ARGUMENT, version=abi/5.0.7)');
+            });
+            it('should reject proposal id out of bounds', async () => {
+                await expectRevert.unspecified( instance.getOneProposal(100, {from: voter1}));
+            });
+
+            describe('should return voter data for voter previously added', function () {
+                let proposal1Response, proposal2Response, proposal3Response;
+                before(async () => {
+                    instance = await buildNewInstance();
+                    await instance.addVoter(voter1, {from: owner});
+                    await instance.addVoter(voter2, {from: owner});
+                    await instance.addVoter(voter3, {from: owner});
+                    await instance.startProposalsRegistering({from: owner});
+                    await instance.addProposal(proposal1Description, {from: voter1});
+                    await instance.addProposal(proposal2Description, {from: voter2});
+                    await instance.addProposal(proposal3Description, {from: voter3});
+                    proposal1Response = await instance.getOneProposal(0, {from: voter1});
+                    proposal2Response = await instance.getOneProposal(1, {from: voter1});
+                    proposal3Response = await instance.getOneProposal(2, {from: voter1});
+                });
+
+                describe('should be a valid description response', function () {
+                    it('should contain description to be ' + proposal1Description + ' string for proposal id 0', async () => {
+                        expect(proposal1Response.description).to.be.string(proposal1Description);
+                    });
+                    it('should contain description to be ' + proposal2Description + ' string for proposal id 1', async () => {
+                        expect(proposal2Response.description).to.be.string(proposal2Description);
+                    });
+                    it('should contain description to be ' + proposal3Description + ' string for proposal id 2', async () => {
+                        expect(proposal3Response.description).to.be.string(proposal3Description);
+                    });
+                });
+            });
         });
     });
 
-    describe.skip('Test workflow mechanisms', function () {
+    describe('Test state "VotingSessionStarted"', function () {
+        let instance;
+
+        describe('setVote function', function () {
+            before(async () => {
+                instance = await buildNewInstance();
+                await instance.addVoter(voter1, {from: owner});
+                await instance.addVoter(voter2, {from: owner});
+                await instance.addVoter(voter3, {from: owner});
+                await instance.startProposalsRegistering({from: owner});
+                await instance.addProposal(proposal1Description, {from: voter1});
+                await instance.addProposal(proposal2Description, {from: voter2});
+                await instance.endProposalsRegistering({from: owner});
+                await instance.startVotingSession({from: owner});
+            });
+
+            it('should reject for voter not yet added into whitelist', async () => {
+                await expectRevert( instance.setVote(0, {from: owner}), 'You\'re not a voter' );
+            });
+            it('should require 1 parameter', async () => {
+                await expectRevert( instance.setVote('', {from: voter1}), 'invalid BigNumber string (argument="value", value="", code=INVALID_ARGUMENT, version=bignumber/5.0.8)');
+            });
+            it('should revert for out of proposals boundaries (negative)', async () => {
+                await expectRevert( instance.setVote(-10, {from: voter1}), 'value out-of-bounds (argument="_id", value=-10, code=INVALID_ARGUMENT, version=abi/5.0.7)');
+            });
+            it('should revert for out of proposals boundaries (positive)', async () => {
+                await expectRevert( instance.setVote(100, {from: voter1}), 'Proposal not found');
+            });
+            /**
+             * This test failed because require condition is '_id <= proposalsArray.length'
+             * and should be '_id < proposalsArray.length' because proposalsArray start at index 0.
+             */
+            it.skip('should revert for out of proposals boundaries (equal proposal size)', async () => {
+                await expectRevert( instance.setVote(2, {from: voter1}), 'Proposal not found');
+            });
+            it('should emit "Voted" event to a valid proposal for voter 1', async () => {
+                expectEvent( await instance.setVote(1, {from: voter1}), 'Voted', {voter: voter1, proposalId: new BN(1)} );
+            });
+            it('should emit "Voted" event to a valid proposal for voter 2', async () => {
+                expectEvent( await instance.setVote(0, {from: voter2}), 'Voted', {voter: voter2, proposalId: new BN(0)} );
+            });
+            it('should revert for voter who already have voted', async () => {
+                await expectRevert( instance.setVote(1, {from: voter2}), 'You have already voted');
+            });
+            it('should mark voter 1 to have voted', async () => {
+                const voter = await instance.getVoter(voter1, {from: voter1});
+                expect(voter.hasVoted).to.be.true;
+            });
+            it('should mark voter 2 to have voted', async () => {
+                const voter = await instance.getVoter(voter2, {from: voter1});
+                expect(voter.hasVoted).to.be.true;
+            });
+            it('should mark proposal id voted for into voter 1', async () => {
+                const voter = await instance.getVoter(voter1, {from: voter1});
+                expect(voter.votedProposalId).to.be.bignumber.equal(new BN(1));
+            });
+            it('should mark proposal id voted for into voter 2', async () => {
+                const voter = await instance.getVoter(voter2, {from: voter1});
+                expect(voter.votedProposalId).to.be.bignumber.equal(new BN(0));
+            });
+        });
+    });
+
+    describe('Test workflow mechanisms', function () {
 
         describe('Step 1: "RegisteringVoters"', function () {
             before(async () => {
