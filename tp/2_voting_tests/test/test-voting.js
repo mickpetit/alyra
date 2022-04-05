@@ -271,7 +271,7 @@ contract('Voting Contract Test Suite', accounts => {
              * This test failed because require condition is '_id <= proposalsArray.length'
              * and should be '_id < proposalsArray.length' because proposalsArray start at index 0.
              */
-            it('should revert for out of proposals boundaries (equal proposal size)', async () => {
+            it('should revert for out of proposals boundaries (equal proposals size)', async () => {
                 await expectRevert( instance.setVote(2, {from: voter1}), 'Proposal not found');
             });
             it('should emit "Voted" event to a valid proposal for voter 1', async () => {

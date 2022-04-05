@@ -70,7 +70,7 @@ Contract: Voting Contract Test Suite
     - ✓ should require 1 parameter
     - ✓ should revert for out of proposals boundaries (negative)
     - ✓ should revert for out of proposals boundaries (positive) (1035ms)
-    - ❌ should revert for out of proposals boundaries (equal proposal size)
+    - ❌ should revert for out of proposals boundaries (equal proposals size)
     - ✓ should emit "Voted" event to a valid proposal for voter 1 (1061ms)
     - ✓ should emit "Voted" event to a valid proposal for voter 2 (1061ms)
     - ✓ should revert for voter who already have voted (1048ms)
