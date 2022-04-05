@@ -31,6 +31,10 @@ contract('Voting Contract Test Suite', accounts => {
         return TestVoting.new({ from: owner });
     }
 
+    /**
+     * Generic tests to be verify
+     * units tests is working :)
+     */
     describe('Test basics', function () {
         it('should be valid to test mechanism', () => {
             expect(true).to.be.true;
@@ -405,6 +409,13 @@ contract('Voting Contract Test Suite', accounts => {
         })
     });
 
+    /**
+     * Tests for function call restriction only
+     * based on workflow state.
+     *
+     * Each callable function is previously tested into
+     * a dedicated describe.
+     */
     describe('Test workflow mechanisms', function () {
 
         describe('Step 1: "RegisteringVoters"', function () {
@@ -642,6 +653,4 @@ contract('Voting Contract Test Suite', accounts => {
         });
 
     });
-
-
 });
