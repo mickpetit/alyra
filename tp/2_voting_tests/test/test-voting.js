@@ -1,6 +1,6 @@
 const { BN, ether, expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
 const { expect } = require('chai');
-const Voting = artifacts.require('Voting');
+const TestVoting = artifacts.require('Voting');
 
 contract('Voting Contract Test Suite', accounts => {
 
@@ -9,6 +9,11 @@ contract('Voting Contract Test Suite', accounts => {
     const voter1 = accounts[1];
     const voter2 = accounts[2];
     const voter3 = accounts[3];
+    const voter4 = accounts[4];
+    const voter5 = accounts[5];
+    const voter6 = accounts[6];
+    const voter7 = accounts[7];
+    const voter8 = accounts[8];
     let proposal1Description = 'my proposal 1';
     let proposal2Description = 'my proposal 2';
     let proposal3Description = 'my proposal 3';
@@ -23,19 +28,16 @@ contract('Voting Contract Test Suite', accounts => {
     });
 
     function buildNewInstance() {
-        return Voting.new({ from: owner });
+        return TestVoting.new({ from: owner });
     }
 
     describe('Test basics', function () {
         it('should be valid to test mechanism', () => {
             expect(true).to.be.true;
         });
-        /**
-         * @todo
-         */
         it('should create a new contract instance', async () => {
             const instance = await buildNewInstance();
-            // console.debug('instance:', instance)
+            expect(instance.address).to.be.not.null;
         });
     });
 
@@ -265,7 +267,7 @@ contract('Voting Contract Test Suite', accounts => {
              * This test failed because require condition is '_id <= proposalsArray.length'
              * and should be '_id < proposalsArray.length' because proposalsArray start at index 0.
              */
-            it.skip('should revert for out of proposals boundaries (equal proposal size)', async () => {
+            it('should revert for out of proposals boundaries (equal proposal size)', async () => {
                 await expectRevert( instance.setVote(2, {from: voter1}), 'Proposal not found');
             });
             it('should emit "Voted" event to a valid proposal for voter 1', async () => {
@@ -294,6 +296,113 @@ contract('Voting Contract Test Suite', accounts => {
                 expect(voter.votedProposalId).to.be.bignumber.equal(new BN(0));
             });
         });
+    });
+
+    describe('Test state "VotingSessionEnded"', function () {
+        let instance;
+
+        describe('tallyVotes function', function () {
+            async function generateDefaultData() {
+                instance = await buildNewInstance();
+                await instance.addVoter(voter1, {from: owner});
+                await instance.addVoter(voter2, {from: owner});
+                await instance.addVoter(voter3, {from: owner});
+                await instance.addVoter(voter4, {from: owner});
+                await instance.addVoter(voter5, {from: owner});
+                await instance.addVoter(voter6, {from: owner});
+                await instance.addVoter(voter7, {from: owner});
+                await instance.addVoter(voter8, {from: owner});
+                await instance.startProposalsRegistering({from: owner});
+                await instance.addProposal(proposal1Description, {from: voter1});
+                await instance.addProposal(proposal2Description, {from: voter2});
+                await instance.addProposal(proposal3Description, {from: voter3});
+                await instance.endProposalsRegistering({from: owner});
+            }
+
+            describe('tests for global cases', function () {
+                before(async () => {
+                    await generateDefaultData();
+                    await instance.startVotingSession({from: owner});
+                    await instance.setVote(2, {from: voter1});
+                    await instance.setVote(1, {from: voter2});
+                    await instance.setVote(2, {from: voter3});
+                    await instance.setVote(0, {from: voter4});
+                    await instance.setVote(0, {from: voter5});
+                    await instance.setVote(2, {from: voter6});
+                    await instance.setVote(1, {from: voter7});
+                    await instance.setVote(2, {from: voter8});
+                    await instance.endVotingSession({from: owner});
+                    /**
+                     * Results:
+                     * - proposal 0: 2
+                     * - proposal 1: 2
+                     * - proposal 2: 4
+                     */
+                });
+
+                it('should restrict call to owner only', async () => {
+                    await expectRevert(instance.tallyVotes({from: voter1}), 'Ownable: caller is not the owner.');
+                });
+                it('should emit "WorkflowStatusChange" event', async () => {
+                    const tx = await instance.tallyVotes({from: owner});
+                    expectEvent(tx, 'WorkflowStatusChange', {previousStatus: new BN(WorkflowStates.VotingSessionEnded), newStatus: new BN(WorkflowStates.VotesTallied)});
+                });
+                it('should set the winning proposal id as public', async () => {
+                    expect(await instance.winningProposalID()).to.be.bignumber.equal(new BN(2))
+                });
+            });
+
+            describe('tests for no voters case', function () {
+                before(async () => {
+                    await generateDefaultData();
+                    await instance.startVotingSession({from: owner});
+                    await instance.setVote(1, {from: voter2});
+                    await instance.setVote(0, {from: voter4});
+                    await instance.setVote(0, {from: voter5});
+                    await instance.setVote(1, {from: voter7});
+                    await instance.endVotingSession({from: owner});
+                    /**
+                     * Results:
+                     * - proposal 0: 2
+                     * - proposal 1: 2
+                     * - proposal 2: 4
+                     */
+                });
+
+                it('should emit "WorkflowStatusChange" event', async () => {
+                    const tx = await instance.tallyVotes({from: owner});
+                    expectEvent(tx, 'WorkflowStatusChange', {previousStatus: new BN(WorkflowStates.VotingSessionEnded), newStatus: new BN(WorkflowStates.VotesTallied)});
+                });
+                it('should set the winning proposal id as first proposal set', async () => {
+                    expect(await instance.winningProposalID()).to.be.bignumber.equal(new BN(0))
+                });
+            });
+
+            describe('tests for equal result for 2 proposals', function () {
+                before(async () => {
+                    await generateDefaultData();
+                    await instance.startVotingSession({from: owner});
+                    await instance.endVotingSession({from: owner});
+                    /**
+                     * Results:
+                     * - proposal 0: 0
+                     * - proposal 1: 0
+                     * - proposal 2: 0
+                     */
+                });
+
+                it('should emit "WorkflowStatusChange" event', async () => {
+                    const tx = await instance.tallyVotes({from: owner});
+                    expectEvent(tx, 'WorkflowStatusChange', {previousStatus: new BN(WorkflowStates.VotingSessionEnded), newStatus: new BN(WorkflowStates.VotesTallied)});
+                });
+                it('should set the winning proposal id as first proposal set', async () => {
+                    expect(await instance.winningProposalID()).to.be.bignumber.equal(new BN(0))
+                });
+            });
+
+
+
+        })
     });
 
     describe('Test workflow mechanisms', function () {
