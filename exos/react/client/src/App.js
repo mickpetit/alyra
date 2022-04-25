@@ -5,7 +5,7 @@ import getWeb3 from "./getWeb3";
 import "./App.css";
 
 class App extends Component {
-  state = { storageValue: 0, web3: null, accounts: null, contract: null };
+  state = { storageValue: 0, web3: null, accounts: null, contract: null, newValue: 0 };
 
   componentDidMount = async () => {
     try {
@@ -48,6 +48,15 @@ class App extends Component {
     this.setState({ storageValue: response });
   };
 
+  handleSubmit = async (event) => {
+      await this.state.contract.methods.set(this.state.newValue).send({from: this.state.accounts[0]});
+      this.setState({storageValue: await this.state.contract.methods.get().call()});
+  }
+
+  handleChange = (event) => {
+      this.setState({newValue: event.target.value});
+  }
+
   render() {
     if (!this.state.web3) {
       return <div>Loading Web3, accounts, and contract...</div>;
@@ -65,6 +74,11 @@ class App extends Component {
           Try changing the value stored on <strong>line 42</strong> of App.js.
         </p>
         <div>The stored value is: {this.state.storageValue}</div>
+
+        <div>
+            <input type="number" value={this.state.newValue} onChange={this.handleChange}/>
+            <button onClick={this.handleSubmit}>Envoyer</button>
+        </div>
       </div>
     );
   }
