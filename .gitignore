@@ -7,6 +7,9 @@ typechain
 #Hardhat files
 cache
 artifacts
-.env
+
+
+
+**/.env
 
 **/node_modules
