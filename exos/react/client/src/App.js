@@ -23,6 +23,17 @@ class App extends Component {
         deployedNetwork && deployedNetwork.address,
       );
 
+        instance.events.ValueUpdated({}, (error, event) => {
+            console.log('error: ', error, 'event: ', event);
+            if ( error ) {
+                console.error('event error incomming:', error);
+            }
+            else {
+                console.info('event incomming:', event);
+                this.setState({storageValue: event.returnValues.value});
+            }
+        })
+
       // Set web3, accounts, and contract to the state, and then proceed with an
       // example of interacting with the contract's methods.
       this.setState({ web3, accounts, contract: instance }, this.runExample);
@@ -41,16 +52,16 @@ class App extends Component {
     // Stores a given value, 5 by default.
     await contract.methods.set(5).send({ from: accounts[0] });
 
-    // Get the value from the contract to prove it worked.
-    const response = await contract.methods.get().call();
-
-    // Update state with the result.
-    this.setState({ storageValue: response });
+    // // Get the value from the contract to prove it worked.
+    // const response = await contract.methods.get().call();
+    //
+    // // Update state with the result.
+    // this.setState({ storageValue: response });
   };
 
   handleSubmit = async (event) => {
       await this.state.contract.methods.set(this.state.newValue).send({from: this.state.accounts[0]});
-      this.setState({storageValue: await this.state.contract.methods.get().call()});
+      // this.setState({storageValue: await this.state.contract.methods.get().call()});
   }
 
   handleChange = (event) => {
